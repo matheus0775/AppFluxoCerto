@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>FluxoCerto — Controle Financeiro</title>
+
+  <!-- PWA: manifest e tema -->
+  <link rel="manifest" href="manifest.json"/>
+  <meta name="theme-color" content="#00C48C"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="apple-mobile-web-app-title" content="FluxoCerto"/>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+
+  <!-- Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+  <style>
+    /* =============================================
+       VARIÁVEIS & RESET
+    ============================================= */
+    :root {
+      --verde:          #00C48C;
+      --verde-claro:    #E6FBF4;
+      --verde-dark:     #00A377;
+      --vermelho:       #FF5C5C;
+      --vermelho-claro: #FFF0F0;
+      --vermelho-dark:  #E03E3E;
+      --amarelo:        #FFB84D;
+      --amarelo-claro:  #FFF8EC;
+      --azul:           #5B6BF8;
+      --azul-claro:     #EEF0FF;
+      --fundo:          #F4F6F9;
+      --branco:         #FFFFFF;
+      --texto:          #1A1D2E;
+      --texto-sub:      #6B7280;
+      --borda:          #E5E8EF;
+      --sombra:         0 2px 16px rgba(26,29,46,.08);
+      --sombra-forte:   0 8px 32px rgba(26,29,46,.14);
+      --radius:         18px;
+      --radius-sm:      10px;
+      --trans:          .2s ease;
+      --safe-bottom:    env(safe-area-inset-bottom, 0px);
+    }
+    [data-theme="dark"] {
+      --fundo:          #12141F;
+      --branco:         #1E2133;
+      --texto:          #F0F2F8;
+      --texto-sub:      #8B90A8;
+      --borda:          #2A2D42;
+      --sombra:         0 2px 16px rgba(0,0,0,.3);
+      --sombra-forte:   0 8px 32px rgba(0,0,0,.4);
+      --verde-claro:    #0D2E24;
+      --vermelho-claro: #2E1414;
+      --amarelo-claro:  #2E2410;
+      --azul-claro:     #12163A;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--fundo);
+      color: var(--texto);
+      min-height: 100vh;
+      min-height: 100dvh;
+      transition: background var(--trans), color var(--trans);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* =============================================
+       HEADER
+    ============================================= */
+    header {
+      background: var(--branco);
+      border-bottom: 1px solid var(--borda);
+      padding: 0 20px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--sombra);
+    }
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.3rem;
+      color: var(--texto);
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--verde);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .9rem;
+    }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    #filtro-mes {
+      font-family: 'DM Sans', sans-serif;
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--texto);
+      background: var(--fundo);
+      border: 1.5px solid var(--borda);
+      border-radius: var(--radius-sm);
+      padding: 6px 10px;
+      cursor: pointer;
+      outline: none;
+      max-width: 140px;
+    }
+    .btn-icon {
+      width: 34px; height: 34px;
+      border: 1.5px solid var(--borda);
+      background: var(--fundo);
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: .95rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: all var(--trans);
+      position: relative;
+    }
+    .btn-icon:hover { border-color: var(--verde); }
+    /* Badge de alerta no sino */
+    .badge-alerta {
+      position: absolute;
+      top: -3px; right: -3px;
+      width: 14px; height: 14px;
+      background: var(--vermelho);
+      border-radius: 50%;
+      border: 2px solid var(--branco);
+      font-size: .55rem;
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+    }
+
+    /* =============================================
+       ABAS DE NAVEGAÇÃO
+    ============================================= */
+    .nav-tabs {
+      display: flex;
+      background: var(--branco);
+      border-bottom: 1px solid var(--borda);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .nav-tabs::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      flex: 1;
+      min-width: 80px;
+      padding: 12px 8px;
+      border: none;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      color: var(--texto-sub);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--trans);
+      white-space: nowrap;
+    }
+    .tab-btn.ativa {
+      color: var(--verde);
+      border-bottom-color: var(--verde);
+    }
+
+    /* =============================================
+       LAYOUT
+    ============================================= */
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px 16px calc(90px + var(--safe-bottom));
+    }
+
+    /* Paineis de aba */
+    .painel { display: none; }
+    .painel.ativo { display: block; }
+
+    /* =============================================
+       CARDS DE RESUMO
+    ============================================= */
+    .resumo-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 500px) {
+      .resumo-grid { grid-template-columns: 1fr 1fr; }
+      .resumo-grid .card-saldo { grid-column: span 2; }
+    }
+
+    .card {
+      background: var(--branco);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--sombra);
+      transition: box-shadow var(--trans), transform var(--trans);
+    }
+    .card-saldo {
+      background: linear-gradient(135deg, #1A1D2E 0%, #2D3250 100%);
+      color: #fff;
+    }
+    [data-theme="dark"] .card-saldo {
+      background: linear-gradient(135deg, #0a0c14 0%, #1a1d2e 100%);
+    }
+    .card-label {
+      font-size: .7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--texto-sub);
+      margin-bottom: 6px;
+    }
+    .card-saldo .card-label { color: rgba(255,255,255,.55); }
+    .card-valor {
+      font-size: 1.4rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .card-msg {
+      font-size: .73rem;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 20px;
+      display: inline-block;
+    }
+    .card-msg.positivo { background: rgba(0,196,140,.15); color: var(--verde); }
+    .card-msg.negativo { background: rgba(255,92,92,.15); color: var(--vermelho); }
+    .card-saldo .card-msg.positivo { background: rgba(0,196,140,.3); }
+    .card-saldo .card-msg.negativo { background: rgba(255,92,92,.3); }
+    .card-icone {
+      font-size: 1.2rem;
+      width: 38px; height: 38px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 12px;
+    }
+    .card-icone.verde   { background: var(--verde-claro); }
+    .card-icone.vermelho{ background: var(--vermelho-claro); }
+    .card-icone.saldo-i { background: rgba(255,255,255,.12); }
+
+    /* =============================================
+       ALERTAS DE GASTOS
+    ============================================= */
+    .alertas-container {
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .alerta-card {
+      border-radius: var(--radius-sm);
+      padding: 13px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: .85rem;
+      animation: slideIn .3s ease;
+    }
+    .alerta-card.vermelho { background: var(--vermelho-claro); border-left: 4px solid var(--vermelho); }
+    .alerta-card.amarelo  { background: var(--amarelo-claro);  border-left: 4px solid var(--amarelo); }
+    .alerta-card.verde    { background: var(--verde-claro);    border-left: 4px solid var(--verde); }
+    .alerta-emoji { font-size: 1.3rem; }
+    .alerta-texto { flex: 1; }
+    .alerta-titulo { font-weight: 700; margin-bottom: 2px; }
+    .alerta-sub    { color: var(--texto-sub); font-size: .78rem; }
+
+    /* =============================================
+       BARRA DE PROGRESSO (Metas)
+    ============================================= */
+    .progress-bar-wrap {
+      background: var(--borda);
+      border-radius: 20px;
+      height: 8px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .progress-bar {
+      height: 100%;
+      border-radius: 20px;
+      transition: width .6s cubic-bezier(.4,0,.2,1);
+    }
+    .progress-bar.ok      { background: var(--verde); }
+    .progress-bar.alerta  { background: var(--amarelo); }
+    .progress-bar.critico { background: var(--vermelho); }
+
+    /* =============================================
+       GRÁFICO + LISTA (PAINEL INÍCIO)
+    ============================================= */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.6fr;
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 700px) { .content-grid { grid-template-columns: 1fr; } }
+
+    .section-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1rem;
+      margin-bottom: 14px;
+      color: var(--texto);
+    }
+
+    /* Filtros de tipo */
+    .filtro-tipo { display: flex; gap: 6px; margin-bottom: 14px; }
+    .btn-filtro {
+      flex: 1;
+      padding: 7px 10px;
+      border-radius: 30px;
+      border: 1.5px solid var(--borda);
+      background: transparent;
+      color: var(--texto-sub);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--trans);
+    }
+    .btn-filtro.active-all     { background: var(--texto);    color: var(--branco); border-color: var(--texto); }
+    .btn-filtro.active-receita { background: var(--verde);    color: #fff; border-color: var(--verde); }
+    .btn-filtro.active-despesa { background: var(--vermelho); color: #fff; border-color: var(--vermelho); }
+
+    /* Lista */
+    .lista-wrapper {
+      max-height: 420px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-right: 2px;
+    }
+    .lista-wrapper::-webkit-scrollbar { width: 4px; }
+    .lista-wrapper::-webkit-scrollbar-thumb { background: var(--borda); border-radius: 4px; }
+
+    .item {
+      background: var(--branco);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      animation: slideIn .25s ease;
+      border-left: 3px solid transparent;
+      transition: box-shadow var(--trans), transform var(--trans);
+    }
+    .item:active { transform: scale(.98); }
+    .item.receita { border-left-color: var(--verde); }
+    .item.despesa { border-left-color: var(--vermelho); }
+    .item-icone {
+      width: 36px; height: 36px; min-width: 36px;
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .95rem;
+    }
+    .item.receita .item-icone { background: var(--verde-claro); }
+    .item.despesa .item-icone { background: var(--vermelho-claro); }
+    .item-info  { flex: 1; min-width: 0; }
+    .item-desc  { font-size: .87rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item-meta  { font-size: .72rem; color: var(--texto-sub); margin-top: 2px; }
+    .item-badge {
+      font-size: .65rem; font-weight: 600;
+      padding: 2px 7px; border-radius: 10px; margin-left: 5px;
+    }
+    .item.receita .item-badge { background: var(--verde-claro);    color: var(--verde); }
+    .item.despesa .item-badge { background: var(--vermelho-claro); color: var(--vermelho); }
+    .item-valor { font-size: .92rem; font-weight: 700; margin-right: 6px; white-space: nowrap; }
+    .item.receita .item-valor { color: var(--verde); }
+    .item.despesa .item-valor { color: var(--vermelho); }
+    .item-acoes { display: flex; gap: 4px; }
+    .btn-acao {
+      width: 28px; height: 28px;
+      border-radius: 7px; border: none;
+      cursor: pointer; font-size: .75rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: background var(--trans);
+    }
+    .btn-editar  { background: var(--azul-claro);    color: var(--azul); }
+    .btn-excluir { background: var(--vermelho-claro); color: var(--vermelho); }
+
+    .lista-vazio { text-align: center; padding: 40px 20px; color: var(--texto-sub); }
+    .lista-vazio .emoji { font-size: 2.2rem; margin-bottom: 8px; }
+    .lista-vazio p { font-size: .85rem; }
+
+    /* =============================================
+       PAINEL CATEGORIAS
+    ============================================= */
+    .cat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .cat-card {
+      background: var(--branco);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      box-shadow: var(--sombra);
+      animation: fadeUp .3s ease both;
+    }
+    .cat-card:nth-child(2) { animation-delay: .05s; }
+    .cat-card:nth-child(3) { animation-delay: .1s; }
+    .cat-card:nth-child(4) { animation-delay: .15s; }
+    .cat-topo { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .cat-emoji { font-size: 1.3rem; }
+    .cat-nome  { font-size: .82rem; font-weight: 700; }
+    .cat-valor { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+    .cat-qtd   { font-size: .72rem; color: var(--texto-sub); }
+
+    /* =============================================
+       PAINEL METAS
+    ============================================= */
+    .meta-lista {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .meta-item {
+      background: var(--branco);
+      border-radius: var(--radius-sm);
+      padding: 16px 18px;
+      box-shadow: var(--sombra);
+    }
+    .meta-topo {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .meta-nome    { font-size: .9rem; font-weight: 700; }
+    .meta-valores { font-size: .8rem; color: var(--texto-sub); }
+    .meta-pct     { font-size: .82rem; font-weight: 700; }
+    .meta-pct.ok      { color: var(--verde); }
+    .meta-pct.alerta  { color: var(--amarelo); }
+    .meta-pct.critico { color: var(--vermelho); }
+
+    .btn-nova-meta {
+      width: 100%;
+      padding: 13px;
+      border-radius: var(--radius-sm);
+      border: 2px dashed var(--borda);
+      background: transparent;
+      color: var(--texto-sub);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--trans);
+    }
+    .btn-nova-meta:hover { border-color: var(--verde); color: var(--verde); background: var(--verde-claro); }
+
+    /* =============================================
+       MODAL GENÉRICO
+    ============================================= */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(10,12,20,.55);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s ease;
+    }
+    .overlay.open { opacity: 1; pointer-events: all; }
+
+    .modal {
+      background: var(--branco);
+      border-radius: var(--radius) var(--radius) 0 0;
+      padding: 24px 20px calc(28px + var(--safe-bottom));
+      width: 100%;
+      max-width: 500px;
+      transform: translateY(100%);
+      transition: transform .35s cubic-bezier(.34,1.2,.64,1);
+      max-height: 92dvh;
+      overflow-y: auto;
+    }
+    .overlay.open .modal { transform: translateY(0); }
+
+    @media (min-width: 520px) {
+      .overlay { align-items: center; padding: 20px; }
+      .modal { border-radius: var(--radius); max-height: 90vh; }
+    }
+
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .modal-title { font-family: 'DM Serif Display', serif; font-size: 1.15rem; }
+    .btn-fechar {
+      width: 30px; height: 30px;
+      border-radius: 50%; border: none;
+      background: var(--fundo); color: var(--texto-sub);
+      cursor: pointer; font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .tipo-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 18px; }
+    .btn-tipo {
+      padding: 11px;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--borda);
+      background: transparent;
+      color: var(--texto-sub);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .86rem; font-weight: 600;
+      cursor: pointer;
+      transition: all var(--trans);
+    }
+    .btn-tipo.ativo-receita { border-color: var(--verde);    background: var(--verde-claro);    color: var(--verde); }
+    .btn-tipo.ativo-despesa { border-color: var(--vermelho); background: var(--vermelho-claro); color: var(--vermelho); }
+
+    .campo { margin-bottom: 14px; }
+    .campo label {
+      display: block; font-size: .74rem; font-weight: 700;
+      color: var(--texto-sub); margin-bottom: 5px;
+      text-transform: uppercase; letter-spacing: .05em;
+    }
+    .campo input,
+    .campo select {
+      width: 100%;
+      padding: 11px 13px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--borda);
+      background: var(--fundo);
+      color: var(--texto);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .9rem;
+      outline: none;
+      transition: border-color var(--trans), box-shadow var(--trans);
+      -webkit-appearance: none;
+    }
+    .campo input:focus,
+    .campo select:focus { border-color: var(--verde); box-shadow: 0 0 0 3px rgba(0,196,140,.12); }
+    .campo input::placeholder { color: var(--texto-sub); opacity: .6; }
+
+    .campos-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 400px) { .campos-row { grid-template-columns: 1fr; } }
+
+    .btn-salvar {
+      width: 100%; padding: 13px;
+      border-radius: var(--radius-sm); border: none;
+      background: var(--verde); color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .95rem; font-weight: 700;
+      cursor: pointer;
+      transition: background var(--trans), transform var(--trans);
+      margin-top: 4px;
+    }
+    .btn-salvar:active { transform: scale(.98); }
+    .btn-salvar.despesa-mode { background: var(--vermelho); }
+
+    /* =============================================
+       FAB
+    ============================================= */
+    .fab {
+      position: fixed;
+      bottom: calc(24px + var(--safe-bottom));
+      right: 22px;
+      width: 54px; height: 54px;
+      border-radius: 50%;
+      background: var(--verde);
+      color: #fff; border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      box-shadow: 0 6px 22px rgba(0,196,140,.45);
+      display: flex; align-items: center; justify-content: center;
+      transition: transform var(--trans), box-shadow var(--trans);
+      z-index: 150;
+    }
+    .fab:active { transform: scale(.92); }
+
+    /* =============================================
+       TOAST
+    ============================================= */
+    .toast {
+      position: fixed;
+      bottom: calc(88px + var(--safe-bottom));
+      left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--texto); color: var(--branco);
+      padding: 11px 18px;
+      border-radius: var(--radius-sm);
+      font-size: .83rem; font-weight: 500;
+      box-shadow: var(--sombra-forte);
+      z-index: 300;
+      opacity: 0;
+      transition: all .3s ease;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    /* =============================================
+       PAINEL DE NOTIFICAÇÕES
+    ============================================= */
+    .notif-painel {
+      position: fixed;
+      top: 60px; right: 0;
+      width: min(340px, 100vw);
+      background: var(--branco);
+      border-left: 1px solid var(--borda);
+      border-bottom: 1px solid var(--borda);
+      border-radius: 0 0 0 var(--radius);
+      box-shadow: var(--sombra-forte);
+      z-index: 200;
+      transform: translateX(100%);
+      transition: transform .3s cubic-bezier(.4,0,.2,1);
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    .notif-painel.open { transform: translateX(0); }
+    .notif-header {
+      padding: 16px 18px 12px;
+      font-family: 'DM Serif Display', serif;
+      font-size: 1rem;
+      border-bottom: 1px solid var(--borda);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .notif-lista { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .notif-vazio { padding: 24px; text-align: center; color: var(--texto-sub); font-size: .85rem; }
+
+    /* =============================================
+       ANIMAÇÕES
+    ============================================= */
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-10px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* =============================================
+       UTILITÁRIOS
+    ============================================= */
+    .mt-12 { margin-top: 12px; }
+    .separador {
+      height: 1px; background: var(--borda);
+      margin: 16px 0;
+    }
+    .chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: 20px;
+      font-size: .75rem; font-weight: 600;
+    }
+    .chip.verde   { background: var(--verde-claro);    color: var(--verde); }
+    .chip.vermelho{ background: var(--vermelho-claro); color: var(--vermelho); }
+  </style>
+</head>
+<body>
+
+<!-- =================== HEADER =================== -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">💸</div>
+    FluxoCerto
+  </div>
+  <div class="header-actions">
+    <select id="filtro-mes" title="Filtrar por mês"></select>
+    <button class="btn-icon" id="btn-alertas" title="Notificações" onclick="toggleNotifPainel()">
+      🔔
+      <span class="badge-alerta" id="badge-notif" style="display:none">!</span>
+    </button>
+    <button class="btn-icon" id="btn-theme" title="Alternar tema">🌙</button>
+  </div>
+</header>
+
+<!-- =================== ABAS =================== -->
+<div class="nav-tabs">
+  <button class="tab-btn ativa" onclick="mostrarPainel('inicio',this)">🏠 Início</button>
+  <button class="tab-btn" onclick="mostrarPainel('categorias',this)">📊 Categorias</button>
+  <button class="tab-btn" onclick="mostrarPainel('metas',this)">🎯 Metas</button>
+</div>
+
+<!-- =================== MAIN =================== -->
+<main>
+
+  <!-- ====== PAINEL INÍCIO ====== -->
+  <div class="painel ativo" id="painel-inicio">
+
+    <!-- Alertas de gastos -->
+    <div class="alertas-container" id="alertas-container"></div>
+
+    <!-- Cards resumo -->
+    <div class="resumo-grid">
+      <div class="card">
+        <div class="card-icone verde">💰</div>
+        <div class="card-label">Receitas</div>
+        <div class="card-valor" id="total-receitas" style="color:var(--verde)">R$ 0</div>
+      </div>
+      <div class="card">
+        <div class="card-icone vermelho">💸</div>
+        <div class="card-label">Despesas</div>
+        <div class="card-valor" id="total-despesas" style="color:var(--vermelho)">R$ 0</div>
+      </div>
+      <div class="card card-saldo">
+        <div class="card-icone saldo-i">📊</div>
+        <div class="card-label">Saldo</div>
+        <div class="card-valor" id="saldo-valor">R$ 0</div>
+        <span class="card-msg" id="saldo-msg">—</span>
+      </div>
+    </div>
+
+    <!-- Gráfico + Lista -->
+    <div class="content-grid">
+      <div class="card" style="padding:18px 20px;">
+        <div class="section-title">Visão do Mês</div>
+        <canvas id="grafico" height="200"></canvas>
+      </div>
+
+      <div class="card" style="padding:18px 20px;">
+        <div class="section-title">Movimentações</div>
+        <div class="filtro-tipo">
+          <button class="btn-filtro active-all" onclick="setFiltroTipo('todos',this)">Todos</button>
+          <button class="btn-filtro" onclick="setFiltroTipo('receita',this)">Receitas</button>
+          <button class="btn-filtro" onclick="setFiltroTipo('despesa',this)">Despesas</button>
+        </div>
+        <div class="lista-wrapper" id="lista"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== PAINEL CATEGORIAS ====== -->
+  <div class="painel" id="painel-categorias">
+    <div class="section-title" style="margin-bottom:16px">Gastos por Categoria</div>
+    <div class="cat-grid" id="cat-grid"></div>
+    <div class="separador"></div>
+    <div class="section-title" style="margin-bottom:16px">Receitas por Categoria</div>
+    <div class="cat-grid" id="cat-grid-receitas"></div>
+  </div>
+
+  <!-- ====== PAINEL METAS ====== -->
+  <div class="painel" id="painel-metas">
+    <div class="section-title" style="margin-bottom:4px">Metas de Gastos Mensais</div>
+    <p style="font-size:.82rem;color:var(--texto-sub);margin-bottom:16px">
+      Defina um limite para cada categoria e acompanhe em tempo real.
+    </p>
+    <div class="meta-lista" id="meta-lista"></div>
+    <button class="btn-nova-meta" onclick="abrirModalMeta()">+ Adicionar Meta</button>
+  </div>
+
+</main>
+
+<!-- =================== FAB =================== -->
+<button class="fab" onclick="abrirModal()" title="Nova movimentação">+</button>
+
+<!-- =================== PAINEL NOTIFICAÇÕES =================== -->
+<div class="notif-painel" id="notif-painel">
+  <div class="notif-header">
+    Alertas <button class="btn-fechar" onclick="toggleNotifPainel()">✕</button>
+  </div>
+  <div id="notif-lista-inner"></div>
+</div>
+
+<!-- =================== MODAL MOVIMENTAÇÃO =================== -->
+<div class="overlay" id="overlay-mov" onclick="fecharModalOverlay('overlay-mov',event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-titulo">Nova Movimentação</div>
+      <button class="btn-fechar" onclick="fecharOverlay('overlay-mov')">✕</button>
+    </div>
+
+    <div class="tipo-toggle">
+      <button class="btn-tipo ativo-receita" id="btn-receita" onclick="setTipo('receita')">✅ Receita</button>
+      <button class="btn-tipo" id="btn-despesa" onclick="setTipo('despesa')">🔴 Despesa</button>
+    </div>
+
+    <div class="campo">
+      <label>Descrição</label>
+      <input type="text" id="campo-desc" placeholder="Ex: Salário, Mercado…"/>
+    </div>
+    <div class="campos-row">
+      <div class="campo">
+        <label>Valor (R$)</label>
+        <input type="number" id="campo-valor" placeholder="0,00" min="0" step="0.01" inputmode="decimal"/>
+      </div>
+      <div class="campo">
+        <label>Data</label>
+        <input type="date" id="campo-data"/>
+      </div>
+    </div>
+    <div class="campo">
+      <label>Categoria</label>
+      <select id="campo-categoria">
+        <option value="">— Sem categoria —</option>
+        <optgroup label="✅ Receitas">
+          <option value="💼 Salário">💼 Salário</option>
+          <option value="🏪 Freelance">🏪 Freelance</option>
+          <option value="📈 Investimentos">📈 Investimentos</option>
+          <option value="🎁 Presente">🎁 Presente</option>
+          <option value="➕ Outra receita">➕ Outra receita</option>
+        </optgroup>
+        <optgroup label="🔴 Despesas">
+          <option value="🏠 Moradia">🏠 Moradia</option>
+          <option value="🛒 Alimentação">🛒 Alimentação</option>
+          <option value="🚗 Transporte">🚗 Transporte</option>
+          <option value="⚡ Contas">⚡ Contas</option>
+          <option value="🏥 Saúde">🏥 Saúde</option>
+          <option value="🎮 Lazer">🎮 Lazer</option>
+          <option value="👗 Vestuário">👗 Vestuário</option>
+          <option value="📚 Educação">📚 Educação</option>
+          <option value="➖ Outra despesa">➖ Outra despesa</option>
+        </optgroup>
+      </select>
+    </div>
+    <button class="btn-salvar" id="btn-salvar" onclick="salvarMovimentacao()">Salvar</button>
+  </div>
+</div>
+
+<!-- =================== MODAL META =================== -->
+<div class="overlay" id="overlay-meta" onclick="fecharModalOverlay('overlay-meta',event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="meta-modal-titulo">Nova Meta de Gasto</div>
+      <button class="btn-fechar" onclick="fecharOverlay('overlay-meta')">✕</button>
+    </div>
+    <div class="campo">
+      <label>Categoria</label>
+      <select id="meta-categoria">
+        <option value="🏠 Moradia">🏠 Moradia</option>
+        <option value="🛒 Alimentação">🛒 Alimentação</option>
+        <option value="🚗 Transporte">🚗 Transporte</option>
+        <option value="⚡ Contas">⚡ Contas</option>
+        <option value="🏥 Saúde">🏥 Saúde</option>
+        <option value="🎮 Lazer">🎮 Lazer</option>
+        <option value="👗 Vestuário">👗 Vestuário</option>
+        <option value="📚 Educação">📚 Educação</option>
+        <option value="➖ Outra despesa">➖ Outra despesa</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label>Limite mensal (R$)</label>
+      <input type="number" id="meta-valor" placeholder="Ex: 500,00" min="1" step="0.01" inputmode="decimal"/>
+    </div>
+    <button class="btn-salvar" onclick="salvarMeta()">Salvar Meta</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- =================== SCRIPT =================== -->
+<script>
+/* =====================================================
+   BANCO DE DADOS — IndexedDB
+   Usamos a API nativa sem bibliotecas externas.
+   Três object stores:
+     - movimentacoes: registros financeiros
+     - metas:         limites por categoria
+     - config:        preferências (tema, etc.)
+===================================================== */
+
+const DB_NOME    = 'fluxocerto';
+const DB_VERSAO  = 1;
+let   db         = null;   // instância do IDBDatabase
+
+/* Abre (ou cria) o banco de dados */
+function abrirDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NOME, DB_VERSAO);
+
+    /* Chamado na primeira vez ou em upgrade de versão */
+    req.onupgradeneeded = (e) => {
+      const bd = e.target.result;
+
+      if (!bd.objectStoreNames.contains('movimentacoes')) {
+        const store = bd.createObjectStore('movimentacoes', { keyPath: 'id' });
+        store.createIndex('data', 'data', { unique: false });
+      }
+      if (!bd.objectStoreNames.contains('metas')) {
+        bd.createObjectStore('metas', { keyPath: 'categoria' });
+      }
+      if (!bd.objectStoreNames.contains('config')) {
+        bd.createObjectStore('config', { keyPath: 'chave' });
+      }
+    };
+
+    req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+    req.onerror   = (e) => reject(e.target.error);
+  });
+}
+
+/* Helper genérico: executa uma transação e retorna Promise */
+function dbOp(storeName, modo, callback) {
+  return new Promise((resolve, reject) => {
+    const tx    = db.transaction(storeName, modo);
+    const store = tx.objectStore(storeName);
+    const req   = callback(store);
+    if (req) {
+      req.onsuccess = (e) => resolve(e.target.result);
+      req.onerror   = (e) => reject(e.target.error);
+    } else {
+      tx.oncomplete = () => resolve();
+      tx.onerror    = (e) => reject(e.target.error);
+    }
+  });
+}
+
+/* CRUD — Movimentações */
+const DB = {
+  /* Retorna todas as movimentações */
+  async getMovimentacoes() {
+    return dbOp('movimentacoes', 'readonly', s => s.getAll());
+  },
+  async addMovimentacao(m) {
+    return dbOp('movimentacoes', 'readwrite', s => s.put(m));
+  },
+  async deleteMovimentacao(id) {
+    return dbOp('movimentacoes', 'readwrite', s => s.delete(id));
+  },
+
+  /* CRUD — Metas */
+  async getMetas() {
+    return dbOp('metas', 'readonly', s => s.getAll());
+  },
+  async saveMeta(meta) {
+    return dbOp('metas', 'readwrite', s => s.put(meta));
+  },
+  async deleteMeta(categoria) {
+    return dbOp('metas', 'readwrite', s => s.delete(categoria));
+  },
+
+  /* Config */
+  async getConfig(chave) {
+    const r = await dbOp('config', 'readonly', s => s.get(chave));
+    return r ? r.valor : null;
+  },
+  async setConfig(chave, valor) {
+    return dbOp('config', 'readwrite', s => s.put({ chave, valor }));
+  },
+};
+
+/* =====================================================
+   ESTADO DA APLICAÇÃO
+===================================================== */
+let movimentacoes    = [];   // cache em memória
+let metas            = [];   // cache em memória
+let filtroTipo       = 'todos';
+let modoEdicao       = null;
+let tipoSelecionado  = 'receita';
+let modoEdicaoMeta   = null;
+let grafico          = null;
+let notifPainelAberto = false;
+
+/* =====================================================
+   INICIALIZAÇÃO
+===================================================== */
+async function init() {
+  await abrirDB();
+
+  // Carrega dados do IndexedDB para memória
+  movimentacoes = await DB.getMovimentacoes();
+  metas         = await DB.getMetas();
+
+  // Tema salvo
+  const tema = await DB.getConfig('tema') || 'light';
+  aplicarTema(tema);
+
+  // Preenche seletor de meses
+  preencherFiltroMes();
+
+  // Data padrão no campo
+  document.getElementById('campo-data').valueAsDate = new Date();
+
+  // Gráfico
+  inicializarGrafico();
+
+  // Renderiza tudo
+  renderizar();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+
+/* =====================================================
+   NAVEGAÇÃO POR ABAS
+===================================================== */
+function mostrarPainel(id, btn) {
+  document.querySelectorAll('.painel').forEach(p => p.classList.remove('ativo'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('ativa'));
+  document.getElementById('painel-' + id).classList.add('ativo');
+  btn.classList.add('ativa');
+  renderizar(); // atualiza painel ativo
+}
+
+/* =====================================================
+   FILTRO DE MÊS
+===================================================== */
+function preencherFiltroMes() {
+  const sel  = document.getElementById('filtro-mes');
+  const hoje = new Date();
+  for (let i = 0; i < 13; i++) {
+    const d   = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const lbl = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    sel.appendChild(new Option(lbl.charAt(0).toUpperCase() + lbl.slice(1), val));
+  }
+  sel.addEventListener('change', renderizar);
+}
+function getMes() { return document.getElementById('filtro-mes').value; }
+
+/* =====================================================
+   FILTRO DE TIPO
+===================================================== */
+function setFiltroTipo(tipo, btn) {
+  filtroTipo = tipo;
+  document.querySelectorAll('.btn-filtro').forEach(b => b.className = 'btn-filtro');
+  if (tipo === 'todos')    btn.classList.add('active-all');
+  if (tipo === 'receita')  btn.classList.add('active-receita');
+  if (tipo === 'despesa')  btn.classList.add('active-despesa');
+  renderizarLista(filtrarDoMes());
+}
+
+/* =====================================================
+   RENDERIZAÇÃO PRINCIPAL
+===================================================== */
+function renderizar() {
+  const doMes = filtrarDoMes();
+
+  // Totais
+  const totalR = doMes.filter(m => m.tipo==='receita').reduce((s,m) => s+m.valor, 0);
+  const totalD = doMes.filter(m => m.tipo==='despesa').reduce((s,m) => s+m.valor, 0);
+  const saldo  = totalR - totalD;
+
+  // Cards
+  document.getElementById('total-receitas').textContent = formatBRL(totalR);
+  document.getElementById('total-despesas').textContent = formatBRL(totalD);
+  document.getElementById('saldo-valor').textContent    = formatBRL(Math.abs(saldo));
+
+  const msgEl = document.getElementById('saldo-msg');
+  if (doMes.length === 0) {
+    msgEl.textContent = '📋 Sem registros';
+    msgEl.className   = 'card-msg';
+  } else if (saldo > 0) {
+    msgEl.textContent = `✨ Sobra ${formatBRL(saldo)}`;
+    msgEl.className   = 'card-msg positivo';
+  } else if (saldo < 0) {
+    msgEl.textContent = `⚠️ Falta ${formatBRL(Math.abs(saldo))}`;
+    msgEl.className   = 'card-msg negativo';
+  } else {
+    msgEl.textContent = '⚖️ Zerado';
+    msgEl.className   = 'card-msg';
+  }
+
+  atualizarGrafico(totalR, totalD);
+  renderizarAlertas(doMes);
+  renderizarLista(doMes);
+  renderizarCategorias(doMes);
+  renderizarMetas(doMes);
+}
+
+/* =====================================================
+   ALERTAS DE GASTOS
+   Regras:
+   - CRÍTICO (vermelho): categoria ultrapassou 100% da meta
+   - AVISO   (amarelo):  categoria entre 80%-100% da meta
+   - POSITIVO(verde):    saldo final positivo e robusto (>20% das receitas)
+===================================================== */
+function renderizarAlertas(doMes) {
+  const container = document.getElementById('alertas-container');
+  const alertas   = [];
+  const notifs    = [];
+
+  // Gastos por categoria no mês
+  const gastos = {};
+  doMes.filter(m => m.tipo === 'despesa').forEach(m => {
+    const cat = m.categoria || '➖ Outra despesa';
+    gastos[cat] = (gastos[cat] || 0) + m.valor;
+  });
+
+  // Verifica cada meta
+  metas.forEach(meta => {
+    const gasto = gastos[meta.categoria] || 0;
+    const pct   = (gasto / meta.limite) * 100;
+
+    if (pct >= 100) {
+      const excesso = gasto - meta.limite;
+      alertas.push({
+        tipo: 'vermelho',
+        emoji: '🚨',
+        titulo: `Meta ultrapassada: ${meta.categoria}`,
+        sub: `Você gastou ${formatBRL(excesso)} além do limite de ${formatBRL(meta.limite)}`,
+      });
+      notifs.push({ tipo: 'vermelho', emoji: '🚨', titulo: `Meta ultrapassada: ${meta.categoria}`, sub: `Gasto: ${formatBRL(gasto)} / Limite: ${formatBRL(meta.limite)}` });
+    } else if (pct >= 80) {
+      alertas.push({
+        tipo: 'amarelo',
+        emoji: '⚠️',
+        titulo: `Atenção: ${meta.categoria}`,
+        sub: `Você já usou ${pct.toFixed(0)}% do limite (${formatBRL(gasto)} de ${formatBRL(meta.limite)})`,
+      });
+      notifs.push({ tipo: 'amarelo', emoji: '⚠️', titulo: `Atenção: ${meta.categoria}`, sub: `${pct.toFixed(0)}% do limite usado` });
+    }
+  });
+
+  // Alerta geral de saldo negativo
+  const totalR = doMes.filter(m => m.tipo==='receita').reduce((s,m) => s+m.valor, 0);
+  const totalD = doMes.filter(m => m.tipo==='despesa').reduce((s,m) => s+m.valor, 0);
+  const saldo  = totalR - totalD;
+  if (saldo < 0 && doMes.length > 0) {
+    alertas.push({
+      tipo: 'vermelho',
+      emoji: '💔',
+      titulo: 'Saldo negativo no mês',
+      sub: `Seus gastos superam as receitas em ${formatBRL(Math.abs(saldo))}`,
+    });
+  } else if (saldo > 0 && totalR > 0 && (saldo/totalR) > 0.2) {
+    alertas.push({
+      tipo: 'verde',
+      emoji: '🎉',
+      titulo: 'Ótimo controle!',
+      sub: `Você está economizando ${((saldo/totalR)*100).toFixed(0)}% da sua renda este mês.`,
+    });
+  }
+
+  // Renderiza alertas inline
+  container.innerHTML = alertas.map(a => `
+    <div class="alerta-card ${a.tipo}">
+      <span class="alerta-emoji">${a.emoji}</span>
+      <div class="alerta-texto">
+        <div class="alerta-titulo">${a.titulo}</div>
+        <div class="alerta-sub">${a.sub}</div>
+      </div>
+    </div>`).join('');
+
+  // Badge no sino
+  const badge = document.getElementById('badge-notif');
+  if (notifs.filter(n => n.tipo === 'vermelho' || n.tipo === 'amarelo').length > 0) {
+    badge.style.display = 'flex';
+    badge.textContent = notifs.length;
+  } else {
+    badge.style.display = 'none';
+  }
+
+  // Painel de notificações
+  const inner = document.getElementById('notif-lista-inner');
+  if (notifs.length === 0) {
+    inner.innerHTML = `<div class="notif-vazio">✅ Nenhum alerta no momento</div>`;
+  } else {
+    inner.innerHTML = `<div class="notif-lista">${notifs.map(n => `
+      <div class="alerta-card ${n.tipo}">
+        <span class="alerta-emoji">${n.emoji}</span>
+        <div class="alerta-texto">
+          <div class="alerta-titulo">${n.titulo}</div>
+          <div class="alerta-sub">${n.sub}</div>
+        </div>
+      </div>`).join('')}</div>`;
+  }
+}
+
+/* =====================================================
+   LISTA DE MOVIMENTAÇÕES
+===================================================== */
+function filtrarDoMes() {
+  const mes = getMes();
+  return movimentacoes.filter(m => m.data && m.data.startsWith(mes));
+}
+
+function renderizarLista(doMes) {
+  const filtrados = doMes
+    .filter(m => filtroTipo === 'todos' || m.tipo === filtroTipo)
+    .sort((a,b) => new Date(b.data) - new Date(a.data));
+
+  const lista = document.getElementById('lista');
+  if (filtrados.length === 0) {
+    lista.innerHTML = `
+      <div class="lista-vazio">
+        <div class="emoji">📭</div>
+        <p>Nenhuma movimentação encontrada.<br>Toque no <strong>+</strong> para adicionar.</p>
+      </div>`;
+    return;
+  }
+
+  lista.innerHTML = filtrados.map(m => {
+    const icone = getIconeCategoria(m.categoria, m.tipo);
+    const badge = m.categoria ? `<span class="item-badge">${m.categoria}</span>` : '';
+    return `
+      <div class="item ${m.tipo}">
+        <div class="item-icone">${icone}</div>
+        <div class="item-info">
+          <div class="item-desc">${m.descricao}</div>
+          <div class="item-meta">${formatData(m.data)}${badge}</div>
+        </div>
+        <div class="item-valor">${m.tipo==='receita'?'+':'-'} ${formatBRL(m.valor)}</div>
+        <div class="item-acoes">
+          <button class="btn-acao btn-editar" onclick="editarMovimentacao('${m.id}')">✏️</button>
+          <button class="btn-acao btn-excluir" onclick="excluirMovimentacao('${m.id}')">🗑️</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* =====================================================
+   PAINEL CATEGORIAS
+===================================================== */
+function renderizarCategorias(doMes) {
+  // Agrupa despesas
+  const gastos   = {};
+  const qtdGasp  = {};
+  doMes.filter(m => m.tipo==='despesa').forEach(m => {
+    const c = m.categoria || '➖ Sem categoria';
+    gastos[c]  = (gastos[c]  || 0) + m.valor;
+    qtdGasp[c] = (qtdGasp[c] || 0) + 1;
+  });
+
+  // Agrupa receitas
+  const receitas  = {};
+  const qtdRec    = {};
+  doMes.filter(m => m.tipo==='receita').forEach(m => {
+    const c = m.categoria || '➕ Sem categoria';
+    receitas[c]  = (receitas[c]  || 0) + m.valor;
+    qtdRec[c]    = (qtdRec[c]   || 0) + 1;
+  });
+
+  const renderGrid = (obj, qtd, elId, cor) => {
+    const el   = document.getElementById(elId);
+    const ents = Object.entries(obj).sort((a,b) => b[1]-a[1]);
+    if (ents.length === 0) {
+      el.innerHTML = `<p style="color:var(--texto-sub);font-size:.85rem">Nenhum registro.</p>`;
+      return;
+    }
+    el.innerHTML = ents.map(([cat,val], i) => `
+      <div class="cat-card" style="animation-delay:${i*0.05}s">
+        <div class="cat-topo">
+          <span class="cat-emoji">${cat.split(' ')[0]}</span>
+          <span class="cat-nome">${cat.split(' ').slice(1).join(' ') || cat}</span>
+        </div>
+        <div class="cat-valor" style="color:var(--${cor})">${formatBRL(val)}</div>
+        <div class="cat-qtd">${qtd[cat]} lançamento${qtd[cat]>1?'s':''}</div>
+      </div>`).join('');
+  };
+
+  renderGrid(gastos,  qtdGasp, 'cat-grid',          'vermelho');
+  renderGrid(receitas, qtdRec,  'cat-grid-receitas', 'verde');
+}
+
+/* =====================================================
+   PAINEL METAS
+===================================================== */
+function renderizarMetas(doMes) {
+  const gastos = {};
+  doMes.filter(m => m.tipo==='despesa').forEach(m => {
+    const c = m.categoria || '➖ Outra despesa';
+    gastos[c] = (gastos[c] || 0) + m.valor;
+  });
+
+  const lista = document.getElementById('meta-lista');
+  if (metas.length === 0) {
+    lista.innerHTML = `
+      <div class="lista-vazio" style="padding:24px">
+        <div class="emoji">🎯</div>
+        <p>Nenhuma meta definida ainda.<br>Clique em "Adicionar Meta" para começar.</p>
+      </div>`;
+    return;
+  }
+
+  lista.innerHTML = metas.map(meta => {
+    const gasto = gastos[meta.categoria] || 0;
+    const pct   = Math.min((gasto / meta.limite) * 100, 100);
+    const classe = pct >= 100 ? 'critico' : pct >= 80 ? 'alerta' : 'ok';
+    return `
+      <div class="meta-item">
+        <div class="meta-topo">
+          <div class="meta-nome">${meta.categoria}</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="meta-pct ${classe}">${pct.toFixed(0)}%</span>
+            <button class="btn-acao btn-editar" onclick="editarMeta('${meta.categoria}')" title="Editar">✏️</button>
+            <button class="btn-acao btn-excluir" onclick="excluirMeta('${meta.categoria}')" title="Excluir">🗑️</button>
+          </div>
+        </div>
+        <div class="meta-valores">${formatBRL(gasto)} de ${formatBRL(meta.limite)} gastos</div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar ${classe}" style="width:${pct}%"></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* =====================================================
+   GRÁFICO (Chart.js — Doughnut)
+===================================================== */
+function inicializarGrafico() {
+  const ctx = document.getElementById('grafico').getContext('2d');
+  grafico = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Receitas', 'Despesas'],
+      datasets: [{
+        data: [0, 0],
+        backgroundColor: ['#00C48C','#FF5C5C'],
+        borderColor:     ['#00A377','#E03E3E'],
+        borderWidth: 2, hoverOffset: 5,
+      }]
+    },
+    options: {
+      cutout: '68%', responsive: true,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            font: { family: 'DM Sans', size: 11, weight: '600' },
+            padding: 14, usePointStyle: true, pointStyleWidth: 7,
+          }
+        },
+        tooltip: { callbacks: { label: c => ` ${formatBRL(c.parsed)}` } }
+      }
+    }
+  });
+}
+function atualizarGrafico(r, d) {
+  if (!grafico) return;
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  grafico.data.datasets[0].data = [r||0, d||0];
+  grafico.options.plugins.legend.labels.color = dark ? '#8B90A8' : '#6B7280';
+  grafico.update();
+}
+
+/* =====================================================
+   MODAL MOVIMENTAÇÃO
+===================================================== */
+function abrirModal(editar = null) {
+  modoEdicao = editar;
+  if (editar) {
+    const m = movimentacoes.find(x => x.id === editar);
+    document.getElementById('modal-titulo').textContent    = 'Editar Movimentação';
+    document.getElementById('campo-desc').value           = m.descricao;
+    document.getElementById('campo-valor').value          = m.valor;
+    document.getElementById('campo-data').value           = m.data;
+    document.getElementById('campo-categoria').value      = m.categoria || '';
+    setTipo(m.tipo);
+  } else {
+    document.getElementById('modal-titulo').textContent   = 'Nova Movimentação';
+    limparCamposMov();
+    setTipo('receita');
+  }
+  document.getElementById('overlay-mov').classList.add('open');
+}
+
+async function salvarMovimentacao() {
+  const desc  = document.getElementById('campo-desc').value.trim();
+  const valor = parseFloat(document.getElementById('campo-valor').value);
+  const data  = document.getElementById('campo-data').value;
+  const cat   = document.getElementById('campo-categoria').value;
+
+  if (!desc)          { mostrarToast('⚠️ Informe a descrição!');       return; }
+  if (!valor||valor<=0){ mostrarToast('⚠️ Informe um valor válido!');  return; }
+  if (!data)          { mostrarToast('⚠️ Informe a data!');            return; }
+
+  const mov = {
+    id: modoEdicao || gerarId(),
+    tipo: tipoSelecionado,
+    descricao: desc, valor, data,
+    categoria: cat,
+    criadoEm: modoEdicao
+      ? movimentacoes.find(x=>x.id===modoEdicao)?.criadoEm
+      : new Date().toISOString(),
+  };
+
+  await DB.addMovimentacao(mov);
+
+  // Atualiza cache em memória
+  const idx = movimentacoes.findIndex(m => m.id === mov.id);
+  if (idx >= 0) movimentacoes[idx] = mov;
+  else movimentacoes.push(mov);
+
+  mostrarToast(modoEdicao ? '✅ Atualizado!' : (tipoSelecionado==='receita' ? '💰 Receita adicionada!' : '💸 Despesa registrada!'));
+  fecharOverlay('overlay-mov');
+  renderizar();
+}
+
+function editarMovimentacao(id) { abrirModal(id); }
+
+async function excluirMovimentacao(id) {
+  await DB.deleteMovimentacao(id);
+  movimentacoes = movimentacoes.filter(m => m.id !== id);
+  renderizar();
+  mostrarToast('🗑️ Removida.');
+}
+
+/* =====================================================
+   MODAL META
+===================================================== */
+function abrirModalMeta(cat = null) {
+  modoEdicaoMeta = cat;
+  document.getElementById('meta-modal-titulo').textContent = cat ? 'Editar Meta' : 'Nova Meta de Gasto';
+  if (cat) {
+    const m = metas.find(x => x.categoria === cat);
+    document.getElementById('meta-categoria').value = m.categoria;
+    document.getElementById('meta-valor').value     = m.limite;
+  } else {
+    document.getElementById('meta-valor').value = '';
+  }
+  document.getElementById('overlay-meta').classList.add('open');
+}
+
+async function salvarMeta() {
+  const cat  = document.getElementById('meta-categoria').value;
+  const lim  = parseFloat(document.getElementById('meta-valor').value);
+  if (!lim || lim <= 0) { mostrarToast('⚠️ Informe um limite válido!'); return; }
+
+  const meta = { categoria: cat, limite: lim };
+  await DB.saveMeta(meta);
+
+  const idx = metas.findIndex(m => m.categoria === cat);
+  if (idx >= 0) metas[idx] = meta;
+  else metas.push(meta);
+
+  mostrarToast('🎯 Meta salva!');
+  fecharOverlay('overlay-meta');
+  renderizar();
+}
+
+function editarMeta(cat) { abrirModalMeta(cat); }
+
+async function excluirMeta(cat) {
+  await DB.deleteMeta(cat);
+  metas = metas.filter(m => m.categoria !== cat);
+  renderizar();
+  mostrarToast('🗑️ Meta removida.');
+}
+
+/* =====================================================
+   OVERLAYS
+===================================================== */
+function fecharOverlay(id) {
+  document.getElementById(id).classList.remove('open');
+  if (id === 'overlay-mov') modoEdicao = null;
+  if (id === 'overlay-meta') modoEdicaoMeta = null;
+}
+function fecharModalOverlay(id, e) {
+  if (e.target.id === id) fecharOverlay(id);
+}
+
+/* =====================================================
+   PAINEL DE NOTIFICAÇÕES
+===================================================== */
+function toggleNotifPainel() {
+  notifPainelAberto = !notifPainelAberto;
+  document.getElementById('notif-painel').classList.toggle('open', notifPainelAberto);
+}
+// Fecha painel ao clicar fora
+document.addEventListener('click', e => {
+  if (notifPainelAberto
+    && !e.target.closest('#notif-painel')
+    && !e.target.closest('#btn-alertas')) {
+    notifPainelAberto = false;
+    document.getElementById('notif-painel').classList.remove('open');
+  }
+});
+
+/* =====================================================
+   TIPO (receita/despesa) no modal
+===================================================== */
+function setTipo(tipo) {
+  tipoSelecionado = tipo;
+  const btnR = document.getElementById('btn-receita');
+  const btnD = document.getElementById('btn-despesa');
+  const btnS = document.getElementById('btn-salvar');
+  btnR.className = tipo==='receita' ? 'btn-tipo ativo-receita' : 'btn-tipo';
+  btnD.className = tipo==='despesa' ? 'btn-tipo ativo-despesa' : 'btn-tipo';
+  btnS.classList.toggle('despesa-mode', tipo==='despesa');
+}
+
+/* =====================================================
+   TEMA CLARO / ESCURO — persiste no IndexedDB
+===================================================== */
+async function aplicarTema(tema) {
+  document.documentElement.setAttribute('data-theme', tema);
+  document.getElementById('btn-theme').textContent = tema==='dark' ? '☀️' : '🌙';
+  await DB.setConfig('tema', tema);
+  if (grafico) atualizarGrafico(...grafico.data.datasets[0].data);
+}
+document.getElementById('btn-theme').addEventListener('click', async () => {
+  const atual = document.documentElement.getAttribute('data-theme') || 'light';
+  await aplicarTema(atual==='dark' ? 'light' : 'dark');
+});
+
+/* =====================================================
+   HELPERS
+===================================================== */
+function formatBRL(v) {
+  return new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(v||0);
+}
+function formatData(str) {
+  if (!str) return '';
+  const [y,m,d] = str.split('-');
+  return `${d}/${m}/${y}`;
+}
+function getIconeCategoria(cat, tipo) {
+  if (cat) return cat.split(' ')[0];
+  return tipo==='receita' ? '💵' : '💳';
+}
+function gerarId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+}
+function limparCamposMov() {
+  document.getElementById('campo-desc').value          = '';
+  document.getElementById('campo-valor').value         = '';
+  document.getElementById('campo-data').valueAsDate    = new Date();
+  document.getElementById('campo-categoria').value     = '';
+}
+function mostrarToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+/* =====================================================
+   REGISTRO DO SERVICE WORKER (PWA)
+===================================================== */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('[PWA] Service Worker registrado:', reg.scope))
+      .catch(err => console.warn('[PWA] Falha ao registrar SW:', err));
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FluxoCerto — Controle Financeiro</title>
+
+  <!-- Google Fonts: DM Serif Display (títulos) + DM Sans (corpo) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+
+  <!-- Chart.js para o gráfico mensal -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+  <style>
+    /* =============================================
+       VARIÁVEIS GLOBAIS & RESET
+    ============================================= */
+    :root {
+      --verde:        #00C48C;
+      --verde-claro:  #E6FBF4;
+      --verde-dark:   #00A377;
+      --vermelho:     #FF5C5C;
+      --vermelho-claro: #FFF0F0;
+      --vermelho-dark: #E03E3E;
+      --amarelo:      #FFB84D;
+      --fundo:        #F4F6F9;
+      --branco:       #FFFFFF;
+      --texto:        #1A1D2E;
+      --texto-sub:    #6B7280;
+      --borda:        #E5E8EF;
+      --sombra:       0 2px 16px rgba(26,29,46,.08);
+      --sombra-forte: 0 8px 32px rgba(26,29,46,.14);
+      --radius:       18px;
+      --radius-sm:    10px;
+      --trans:        .2s ease;
+    }
+
+    /* Dark mode */
+    [data-theme="dark"] {
+      --fundo:        #12141F;
+      --branco:       #1E2133;
+      --texto:        #F0F2F8;
+      --texto-sub:    #8B90A8;
+      --borda:        #2A2D42;
+      --sombra:       0 2px 16px rgba(0,0,0,.3);
+      --sombra-forte: 0 8px 32px rgba(0,0,0,.4);
+      --verde-claro:  #0D2E24;
+      --vermelho-claro: #2E1414;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--fundo);
+      color: var(--texto);
+      min-height: 100vh;
+      transition: background var(--trans), color var(--trans);
+    }
+
+    /* =============================================
+       HEADER
+    ============================================= */
+    header {
+      background: var(--branco);
+      border-bottom: 1px solid var(--borda);
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--sombra);
+    }
+
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.4rem;
+      color: var(--texto);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 34px; height: 34px;
+      background: var(--verde);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+    }
+
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+
+    /* Seletor de mês */
+    #filtro-mes {
+      font-family: 'DM Sans', sans-serif;
+      font-size: .85rem;
+      font-weight: 600;
+      color: var(--texto);
+      background: var(--fundo);
+      border: 1px solid var(--borda);
+      border-radius: var(--radius-sm);
+      padding: 7px 12px;
+      cursor: pointer;
+      outline: none;
+      transition: border-color var(--trans);
+    }
+    #filtro-mes:hover { border-color: var(--verde); }
+
+    /* Botão dark mode */
+    .btn-theme {
+      width: 36px; height: 36px;
+      border: 1px solid var(--borda);
+      background: var(--fundo);
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: background var(--trans), border-color var(--trans);
+    }
+    .btn-theme:hover { border-color: var(--verde); }
+
+    /* =============================================
+       LAYOUT PRINCIPAL
+    ============================================= */
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 20px 120px;
+    }
+
+    /* =============================================
+       CARDS DE RESUMO
+    ============================================= */
+    .resumo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .card {
+      background: var(--branco);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      box-shadow: var(--sombra);
+      transition: box-shadow var(--trans), transform var(--trans);
+    }
+    .card:hover { box-shadow: var(--sombra-forte); transform: translateY(-2px); }
+
+    /* Card saldo — destaque */
+    .card-saldo {
+      background: linear-gradient(135deg, #1A1D2E 0%, #2D3250 100%);
+      color: #fff;
+      grid-column: span 1;
+    }
+    [data-theme="dark"] .card-saldo {
+      background: linear-gradient(135deg, #0a0c14 0%, #1a1d2e 100%);
+    }
+
+    .card-label {
+      font-size: .75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--texto-sub);
+      margin-bottom: 8px;
+    }
+    .card-saldo .card-label { color: rgba(255,255,255,.6); }
+
+    .card-valor {
+      font-size: 1.75rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .card-msg {
+      font-size: .8rem;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-top: 4px;
+    }
+    .card-msg.positivo { background: rgba(0,196,140,.15); color: var(--verde); }
+    .card-msg.negativo { background: rgba(255,92,92,.15); color: var(--vermelho); }
+    .card-saldo .card-msg.positivo { background: rgba(0,196,140,.25); }
+    .card-saldo .card-msg.negativo { background: rgba(255,92,92,.25); }
+
+    .card-icone {
+      font-size: 1.4rem;
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 14px;
+    }
+    .card-icone.verde { background: var(--verde-claro); }
+    .card-icone.vermelho { background: var(--vermelho-claro); }
+    .card-icone.saldo-icon { background: rgba(255,255,255,.12); font-size: 1.2rem; }
+
+    /* =============================================
+       SEÇÃO GRÁFICO + LISTA
+    ============================================= */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.6fr;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 800px) {
+      .content-grid { grid-template-columns: 1fr; }
+    }
+
+    .card-grafico { padding: 22px 24px; }
+    .section-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.05rem;
+      margin-bottom: 18px;
+      color: var(--texto);
+    }
+
+    /* =============================================
+       FILTROS DE TIPO
+    ============================================= */
+    .filtro-tipo {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .btn-filtro {
+      flex: 1;
+      padding: 8px 14px;
+      border-radius: 30px;
+      border: 1.5px solid var(--borda);
+      background: transparent;
+      color: var(--texto-sub);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--trans);
+    }
+    .btn-filtro:hover { border-color: var(--verde); color: var(--verde); }
+    .btn-filtro.active-all { background: var(--texto); color: var(--branco); border-color: var(--texto); }
+    .btn-filtro.active-receita { background: var(--verde); color: #fff; border-color: var(--verde); }
+    .btn-filtro.active-despesa { background: var(--vermelho); color: #fff; border-color: var(--vermelho); }
+
+    /* =============================================
+       LISTA DE MOVIMENTAÇÕES
+    ============================================= */
+    .lista-wrapper {
+      max-height: 460px;
+      overflow-y: auto;
+      padding-right: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .lista-wrapper::-webkit-scrollbar { width: 4px; }
+    .lista-wrapper::-webkit-scrollbar-track { background: transparent; }
+    .lista-wrapper::-webkit-scrollbar-thumb { background: var(--borda); border-radius: 4px; }
+
+    /* Item de movimentação */
+    .item {
+      background: var(--branco);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      animation: slideIn .25s ease;
+      border-left: 3px solid transparent;
+      transition: box-shadow var(--trans), transform var(--trans);
+    }
+    .item:hover { box-shadow: var(--sombra); transform: translateX(2px); }
+    .item.receita { border-left-color: var(--verde); }
+    .item.despesa { border-left-color: var(--vermelho); }
+
+    .item-icone {
+      width: 38px; height: 38px; min-width: 38px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+    }
+    .item.receita .item-icone { background: var(--verde-claro); }
+    .item.despesa .item-icone { background: var(--vermelho-claro); }
+
+    .item-info { flex: 1; min-width: 0; }
+    .item-desc {
+      font-size: .9rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .item-meta {
+      font-size: .75rem;
+      color: var(--texto-sub);
+      margin-top: 2px;
+    }
+    .item-badge {
+      font-size: .68rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      margin-left: 6px;
+    }
+    .item.receita .item-badge { background: var(--verde-claro); color: var(--verde); }
+    .item.despesa .item-badge { background: var(--vermelho-claro); color: var(--vermelho); }
+
+    .item-valor {
+      font-size: .95rem;
+      font-weight: 700;
+      margin-right: 8px;
+    }
+    .item.receita .item-valor { color: var(--verde); }
+    .item.despesa .item-valor { color: var(--vermelho); }
+
+    .item-acoes {
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity var(--trans);
+    }
+    .item:hover .item-acoes { opacity: 1; }
+
+    .btn-acao {
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: .8rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: background var(--trans);
+    }
+    .btn-editar { background: #EEF2FF; color: #5B6BF8; }
+    .btn-editar:hover { background: #D8DEFF; }
+    .btn-excluir { background: var(--vermelho-claro); color: var(--vermelho); }
+    .btn-excluir:hover { background: #FFD6D6; }
+
+    /* Vazio */
+    .lista-vazio {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--texto-sub);
+    }
+    .lista-vazio .emoji { font-size: 2.5rem; margin-bottom: 10px; }
+    .lista-vazio p { font-size: .88rem; }
+
+    /* =============================================
+       MODAL
+    ============================================= */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 12, 20, .55);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s ease;
+    }
+    .overlay.open { opacity: 1; pointer-events: all; }
+
+    .modal {
+      background: var(--branco);
+      border-radius: var(--radius) var(--radius) 0 0;
+      padding: 28px 24px 32px;
+      width: 100%;
+      max-width: 480px;
+      transform: translateY(40px);
+      transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+    }
+    .overlay.open .modal { transform: translateY(0); }
+
+    @media (min-width: 520px) {
+      .overlay { align-items: center; }
+      .modal { border-radius: var(--radius); }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .modal-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.2rem;
+    }
+    .btn-fechar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: var(--fundo);
+      color: var(--texto-sub);
+      cursor: pointer;
+      font-size: 1.1rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: background var(--trans);
+    }
+    .btn-fechar:hover { background: var(--borda); }
+
+    /* Tipo toggle */
+    .tipo-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .btn-tipo {
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--borda);
+      background: transparent;
+      color: var(--texto-sub);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--trans);
+    }
+    .btn-tipo.ativo-receita { border-color: var(--verde); background: var(--verde-claro); color: var(--verde); }
+    .btn-tipo.ativo-despesa { border-color: var(--vermelho); background: var(--vermelho-claro); color: var(--vermelho); }
+
+    /* Campos do formulário */
+    .campo { margin-bottom: 16px; }
+    .campo label {
+      display: block;
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--texto-sub);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .campo input,
+    .campo select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--borda);
+      background: var(--fundo);
+      color: var(--texto);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .92rem;
+      outline: none;
+      transition: border-color var(--trans), box-shadow var(--trans);
+    }
+    .campo input:focus,
+    .campo select:focus {
+      border-color: var(--verde);
+      box-shadow: 0 0 0 3px rgba(0,196,140,.12);
+    }
+    .campo input::placeholder { color: var(--texto-sub); opacity: .7; }
+
+    .campos-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .btn-salvar {
+      width: 100%;
+      padding: 14px;
+      border-radius: var(--radius-sm);
+      border: none;
+      background: var(--verde);
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background var(--trans), transform var(--trans);
+      margin-top: 6px;
+    }
+    .btn-salvar:hover { background: var(--verde-dark); transform: translateY(-1px); }
+    .btn-salvar:active { transform: translateY(0); }
+    .btn-salvar.despesa-mode { background: var(--vermelho); }
+    .btn-salvar.despesa-mode:hover { background: var(--vermelho-dark); }
+
+    /* =============================================
+       FAB — Botão flutuante
+    ============================================= */
+    .fab {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: var(--verde);
+      color: #fff;
+      border: none;
+      font-size: 1.6rem;
+      font-weight: 300;
+      cursor: pointer;
+      box-shadow: 0 6px 24px rgba(0,196,140,.45);
+      display: flex; align-items: center; justify-content: center;
+      transition: transform var(--trans), box-shadow var(--trans);
+      z-index: 150;
+    }
+    .fab:hover {
+      transform: rotate(45deg) scale(1.08);
+      box-shadow: 0 10px 32px rgba(0,196,140,.55);
+    }
+
+    /* =============================================
+       ANIMAÇÕES
+    ============================================= */
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-12px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .resumo-grid .card { animation: fadeUp .35s ease both; }
+    .resumo-grid .card:nth-child(2) { animation-delay: .07s; }
+    .resumo-grid .card:nth-child(3) { animation-delay: .14s; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 96px;
+      right: 28px;
+      background: var(--texto);
+      color: var(--branco);
+      padding: 12px 18px;
+      border-radius: var(--radius-sm);
+      font-size: .85rem;
+      font-weight: 500;
+      box-shadow: var(--sombra-forte);
+      z-index: 300;
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all .3s ease;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    /* =============================================
+       RESPONSIVO
+    ============================================= */
+    @media (max-width: 500px) {
+      main { padding: 20px 14px 100px; }
+      .campos-row { grid-template-columns: 1fr; }
+      .card-valor { font-size: 1.45rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===================== HEADER ===================== -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">💸</div>
+    FluxoCerto
+  </div>
+  <div class="header-actions">
+    <select id="filtro-mes" title="Filtrar por mês"></select>
+    <button class="btn-theme" id="btn-theme" title="Alternar tema">🌙</button>
+  </div>
+</header>
+
+<!-- ===================== CONTEÚDO ===================== -->
+<main>
+
+  <!-- Cards de resumo -->
+  <div class="resumo-grid">
+    <!-- Receitas -->
+    <div class="card">
+      <div class="card-icone verde">💰</div>
+      <div class="card-label">Total Receitas</div>
+      <div class="card-valor" id="total-receitas" style="color:var(--verde)">R$ 0,00</div>
+    </div>
+
+    <!-- Despesas -->
+    <div class="card">
+      <div class="card-icone vermelho">💸</div>
+      <div class="card-label">Total Despesas</div>
+      <div class="card-valor" id="total-despesas" style="color:var(--vermelho)">R$ 0,00</div>
+    </div>
+
+    <!-- Saldo -->
+    <div class="card card-saldo">
+      <div class="card-icone saldo-icon">📊</div>
+      <div class="card-label">Saldo do Mês</div>
+      <div class="card-valor" id="saldo-valor">R$ 0,00</div>
+      <span class="card-msg" id="saldo-msg">Sem movimentações</span>
+    </div>
+  </div>
+
+  <!-- Gráfico + Lista -->
+  <div class="content-grid">
+
+    <!-- Gráfico -->
+    <div class="card card-grafico">
+      <div class="section-title">Visão Mensal</div>
+      <canvas id="grafico" height="200"></canvas>
+    </div>
+
+    <!-- Lista -->
+    <div class="card" style="padding:22px 24px;">
+      <div class="section-title">Movimentações</div>
+
+      <!-- Filtros de tipo -->
+      <div class="filtro-tipo">
+        <button class="btn-filtro active-all" data-tipo="todos" onclick="setFiltroTipo('todos',this)">Todos</button>
+        <button class="btn-filtro" data-tipo="receita" onclick="setFiltroTipo('receita',this)">Receitas</button>
+        <button class="btn-filtro" data-tipo="despesa" onclick="setFiltroTipo('despesa',this)">Despesas</button>
+      </div>
+
+      <!-- Lista de itens -->
+      <div class="lista-wrapper" id="lista"></div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ===================== FAB ===================== -->
+<button class="fab" onclick="abrirModal()" title="Nova movimentação">+</button>
+
+<!-- ===================== MODAL ===================== -->
+<div class="overlay" id="overlay" onclick="fecharModalOverlay(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-titulo">Nova Movimentação</div>
+      <button class="btn-fechar" onclick="fecharModal()">✕</button>
+    </div>
+
+    <!-- Toggle Receita / Despesa -->
+    <div class="tipo-toggle">
+      <button class="btn-tipo ativo-receita" id="btn-receita" onclick="setTipo('receita')">
+        ✅ Receita
+      </button>
+      <button class="btn-tipo" id="btn-despesa" onclick="setTipo('despesa')">
+        🔴 Despesa
+      </button>
+    </div>
+
+    <!-- Campos -->
+    <div class="campo">
+      <label>Descrição</label>
+      <input type="text" id="campo-desc" placeholder="Ex: Salário, Aluguel, Mercado…"/>
+    </div>
+
+    <div class="campos-row">
+      <div class="campo">
+        <label>Valor (R$)</label>
+        <input type="number" id="campo-valor" placeholder="0,00" min="0" step="0.01"/>
+      </div>
+      <div class="campo">
+        <label>Data</label>
+        <input type="date" id="campo-data"/>
+      </div>
+    </div>
+
+    <div class="campo">
+      <label>Categoria</label>
+      <select id="campo-categoria">
+        <option value="">— Sem categoria —</option>
+        <optgroup label="Receitas">
+          <option value="💼 Salário">💼 Salário</option>
+          <option value="🏪 Freelance">🏪 Freelance</option>
+          <option value="📈 Investimentos">📈 Investimentos</option>
+          <option value="🎁 Presente">🎁 Presente</option>
+          <option value="➕ Outra receita">➕ Outra receita</option>
+        </optgroup>
+        <optgroup label="Despesas">
+          <option value="🏠 Moradia">🏠 Moradia</option>
+          <option value="🛒 Alimentação">🛒 Alimentação</option>
+          <option value="🚗 Transporte">🚗 Transporte</option>
+          <option value="⚡ Contas">⚡ Contas</option>
+          <option value="🏥 Saúde">🏥 Saúde</option>
+          <option value="🎮 Lazer">🎮 Lazer</option>
+          <option value="👗 Vestuário">👗 Vestuário</option>
+          <option value="📚 Educação">📚 Educação</option>
+          <option value="➖ Outra despesa">➖ Outra despesa</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <button class="btn-salvar" id="btn-salvar" onclick="salvarMovimentacao()">
+      Salvar
+    </button>
+  </div>
+</div>
+
+<!-- Toast de feedback -->
+<div class="toast" id="toast"></div>
+
+<!-- ===================== SCRIPT ===================== -->
+<script>
+  /* -----------------------------------------------
+     ESTADO DA APLICAÇÃO
+  ----------------------------------------------- */
+  let movimentacoes = JSON.parse(localStorage.getItem('fluxocerto_dados') || '[]');
+  let filtroTipo    = 'todos';
+  let modoEdicao    = null;          // id da movimentação em edição
+  let tipoSelecionado = 'receita';   // tipo no modal
+  let grafico       = null;          // instância Chart.js
+
+  /* -----------------------------------------------
+     INICIALIZAÇÃO
+  ----------------------------------------------- */
+  document.addEventListener('DOMContentLoaded', () => {
+    // Preenche seletor de meses (12 meses anteriores + atual)
+    preencherFiltroMes();
+
+    // Restaura tema salvo
+    const tema = localStorage.getItem('fluxocerto_tema') || 'light';
+    aplicarTema(tema);
+
+    // Define data padrão do campo
+    document.getElementById('campo-data').valueAsDate = new Date();
+
+    // Inicializa gráfico
+    inicializarGrafico();
+
+    // Renderiza
+    renderizar();
+  });
+
+  /* -----------------------------------------------
+     PERSISTÊNCIA
+  ----------------------------------------------- */
+  function salvarDados() {
+    localStorage.setItem('fluxocerto_dados', JSON.stringify(movimentacoes));
+  }
+
+  /* -----------------------------------------------
+     FILTRO DE MÊS
+  ----------------------------------------------- */
+  function preencherFiltroMes() {
+    const sel = document.getElementById('filtro-mes');
+    const hoje = new Date();
+
+    for (let i = 0; i < 13; i++) {
+      const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      const opt = new Option(label.charAt(0).toUpperCase() + label.slice(1), val);
+      sel.appendChild(opt);
+    }
+
+    sel.addEventListener('change', renderizar);
+  }
+
+  function getMesFiltrado() {
+    return document.getElementById('filtro-mes').value; // "YYYY-MM"
+  }
+
+  /* -----------------------------------------------
+     FILTRO DE TIPO
+  ----------------------------------------------- */
+  function setFiltroTipo(tipo, btn) {
+    filtroTipo = tipo;
+    // Remove classes ativas de todos os botões
+    document.querySelectorAll('.btn-filtro').forEach(b => b.className = 'btn-filtro');
+    // Adiciona classe no botão clicado
+    if (tipo === 'todos')    btn.classList.add('active-all');
+    if (tipo === 'receita')  btn.classList.add('active-receita');
+    if (tipo === 'despesa')  btn.classList.add('active-despesa');
+    renderizar();
+  }
+
+  /* -----------------------------------------------
+     RENDERIZAÇÃO PRINCIPAL
+  ----------------------------------------------- */
+  function renderizar() {
+    const mes = getMesFiltrado();
+
+    // Filtra pelo mês selecionado
+    const doMes = movimentacoes.filter(m => m.data && m.data.startsWith(mes));
+
+    // Totais
+    const totalReceitas = doMes
+      .filter(m => m.tipo === 'receita')
+      .reduce((s, m) => s + m.valor, 0);
+
+    const totalDespesas = doMes
+      .filter(m => m.tipo === 'despesa')
+      .reduce((s, m) => s + m.valor, 0);
+
+    const saldo = totalReceitas - totalDespesas;
+
+    // Atualiza cards de resumo
+    document.getElementById('total-receitas').textContent = formatBRL(totalReceitas);
+    document.getElementById('total-despesas').textContent = formatBRL(totalDespesas);
+    document.getElementById('saldo-valor').textContent    = formatBRL(Math.abs(saldo));
+
+    const msgEl = document.getElementById('saldo-msg');
+    if (doMes.length === 0) {
+      msgEl.textContent = '📋 Sem movimentações';
+      msgEl.className = 'card-msg';
+    } else if (saldo > 0) {
+      msgEl.textContent = `✨ Vai sobrar ${formatBRL(saldo)}`;
+      msgEl.className = 'card-msg positivo';
+    } else if (saldo < 0) {
+      msgEl.textContent = `⚠️ Vai faltar ${formatBRL(Math.abs(saldo))}`;
+      msgEl.className = 'card-msg negativo';
+    } else {
+      msgEl.textContent = '⚖️ Saldo zerado';
+      msgEl.className = 'card-msg';
+    }
+
+    // Atualiza gráfico
+    atualizarGrafico(totalReceitas, totalDespesas);
+
+    // Renderiza lista com filtro de tipo
+    const filtrados = doMes.filter(m => filtroTipo === 'todos' || m.tipo === filtroTipo);
+    // Ordena: mais recentes primeiro
+    filtrados.sort((a, b) => new Date(b.data) - new Date(a.data));
+
+    renderizarLista(filtrados);
+  }
+
+  /* -----------------------------------------------
+     LISTA DE MOVIMENTAÇÕES
+  ----------------------------------------------- */
+  function renderizarLista(itens) {
+    const lista = document.getElementById('lista');
+
+    if (itens.length === 0) {
+      lista.innerHTML = `
+        <div class="lista-vazio">
+          <div class="emoji">📭</div>
+          <p>Nenhuma movimentação encontrada.<br>Clique no <strong>+</strong> para adicionar.</p>
+        </div>`;
+      return;
+    }
+
+    lista.innerHTML = itens.map(m => {
+      const icone = getIconeCategoria(m.categoria, m.tipo);
+      const data  = formatData(m.data);
+      const badge = m.categoria
+        ? `<span class="item-badge">${m.categoria}</span>`
+        : '';
+
+      return `
+        <div class="item ${m.tipo}" data-id="${m.id}">
+          <div class="item-icone">${icone}</div>
+          <div class="item-info">
+            <div class="item-desc">${m.descricao}</div>
+            <div class="item-meta">${data}${badge}</div>
+          </div>
+          <div class="item-valor">${m.tipo === 'receita' ? '+' : '-'} ${formatBRL(m.valor)}</div>
+          <div class="item-acoes">
+            <button class="btn-acao btn-editar" title="Editar" onclick="editarMovimentacao('${m.id}')">✏️</button>
+            <button class="btn-acao btn-excluir" title="Excluir" onclick="excluirMovimentacao('${m.id}')">🗑️</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  /* -----------------------------------------------
+     GRÁFICO (Chart.js — Doughnut)
+  ----------------------------------------------- */
+  function inicializarGrafico() {
+    const ctx = document.getElementById('grafico').getContext('2d');
+    grafico = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Receitas', 'Despesas'],
+        datasets: [{
+          data: [0, 0],
+          backgroundColor: ['#00C48C', '#FF5C5C'],
+          borderColor: ['#00A377', '#E03E3E'],
+          borderWidth: 2,
+          hoverOffset: 6,
+        }]
+      },
+      options: {
+        cutout: '68%',
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              font: { family: 'DM Sans', size: 12, weight: '600' },
+              padding: 16,
+              usePointStyle: true,
+              pointStyleWidth: 8,
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${formatBRL(ctx.parsed)}`
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function atualizarGrafico(receitas, despesas) {
+    if (!grafico) return;
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    grafico.data.datasets[0].data = [receitas || 0, despesas || 0];
+    grafico.options.plugins.legend.labels.color = isDark ? '#8B90A8' : '#6B7280';
+    grafico.update();
+  }
+
+  /* -----------------------------------------------
+     MODAL — ABRIR / FECHAR
+  ----------------------------------------------- */
+  function abrirModal(editar = null) {
+    modoEdicao = editar;
+
+    if (editar) {
+      // Preenche campos para edição
+      const m = movimentacoes.find(x => x.id === editar);
+      document.getElementById('modal-titulo').textContent = 'Editar Movimentação';
+      document.getElementById('campo-desc').value      = m.descricao;
+      document.getElementById('campo-valor').value     = m.valor;
+      document.getElementById('campo-data').value      = m.data;
+      document.getElementById('campo-categoria').value = m.categoria || '';
+      setTipo(m.tipo);
+    } else {
+      document.getElementById('modal-titulo').textContent = 'Nova Movimentação';
+      limparCampos();
+      setTipo('receita');
+    }
+
+    document.getElementById('overlay').classList.add('open');
+  }
+
+  function fecharModal() {
+    document.getElementById('overlay').classList.remove('open');
+    modoEdicao = null;
+  }
+
+  // Fecha modal ao clicar fora (no overlay)
+  function fecharModalOverlay(e) {
+    if (e.target.id === 'overlay') fecharModal();
+  }
+
+  /* -----------------------------------------------
+     TIPO (Receita / Despesa) no modal
+  ----------------------------------------------- */
+  function setTipo(tipo) {
+    tipoSelecionado = tipo;
+    const btnR = document.getElementById('btn-receita');
+    const btnD = document.getElementById('btn-despesa');
+    const btnS = document.getElementById('btn-salvar');
+
+    if (tipo === 'receita') {
+      btnR.className = 'btn-tipo ativo-receita';
+      btnD.className = 'btn-tipo';
+      btnS.classList.remove('despesa-mode');
+    } else {
+      btnR.className = 'btn-tipo';
+      btnD.className = 'btn-tipo ativo-despesa';
+      btnS.classList.add('despesa-mode');
+    }
+  }
+
+  /* -----------------------------------------------
+     SALVAR MOVIMENTAÇÃO
+  ----------------------------------------------- */
+  function salvarMovimentacao() {
+    const desc  = document.getElementById('campo-desc').value.trim();
+    const valor = parseFloat(document.getElementById('campo-valor').value);
+    const data  = document.getElementById('campo-data').value;
+    const cat   = document.getElementById('campo-categoria').value;
+
+    // Validação
+    if (!desc)       { mostrarToast('⚠️ Informe a descrição!'); return; }
+    if (!valor || valor <= 0) { mostrarToast('⚠️ Informe um valor válido!'); return; }
+    if (!data)       { mostrarToast('⚠️ Informe a data!'); return; }
+
+    if (modoEdicao) {
+      // Edição
+      const idx = movimentacoes.findIndex(m => m.id === modoEdicao);
+      movimentacoes[idx] = { ...movimentacoes[idx], descricao: desc, valor, data, categoria: cat, tipo: tipoSelecionado };
+      mostrarToast('✅ Movimentação atualizada!');
+    } else {
+      // Nova
+      movimentacoes.push({
+        id: gerarId(),
+        tipo: tipoSelecionado,
+        descricao: desc,
+        valor,
+        data,
+        categoria: cat,
+      });
+      mostrarToast(tipoSelecionado === 'receita' ? '💰 Receita adicionada!' : '💸 Despesa registrada!');
+    }
+
+    salvarDados();
+    fecharModal();
+    renderizar();
+  }
+
+  /* -----------------------------------------------
+     EDITAR
+  ----------------------------------------------- */
+  function editarMovimentacao(id) {
+    abrirModal(id);
+  }
+
+  /* -----------------------------------------------
+     EXCLUIR
+  ----------------------------------------------- */
+  function excluirMovimentacao(id) {
+    movimentacoes = movimentacoes.filter(m => m.id !== id);
+    salvarDados();
+    renderizar();
+    mostrarToast('🗑️ Movimentação removida.');
+  }
+
+  /* -----------------------------------------------
+     TEMA CLARO / ESCURO
+  ----------------------------------------------- */
+  function aplicarTema(tema) {
+    document.documentElement.setAttribute('data-theme', tema);
+    document.getElementById('btn-theme').textContent = tema === 'dark' ? '☀️' : '🌙';
+    localStorage.setItem('fluxocerto_tema', tema);
+    if (grafico) atualizarGrafico(...grafico.data.datasets[0].data);
+  }
+
+  document.getElementById('btn-theme').addEventListener('click', () => {
+    const atual = document.documentElement.getAttribute('data-theme') || 'light';
+    aplicarTema(atual === 'dark' ? 'light' : 'dark');
+  });
+
+  /* -----------------------------------------------
+     HELPERS
+  ----------------------------------------------- */
+  // Formata valor em R$
+  function formatBRL(v) {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+  }
+
+  // Formata data pt-BR
+  function formatData(str) {
+    if (!str) return '';
+    const [y, m, d] = str.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  // Ícone por categoria
+  function getIconeCategoria(cat, tipo) {
+    if (cat) return cat.split(' ')[0]; // pega o emoji da categoria
+    return tipo === 'receita' ? '💵' : '💳';
+  }
+
+  // Gera ID único
+  function gerarId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  // Limpa campos do formulário
+  function limparCampos() {
+    document.getElementById('campo-desc').value      = '';
+    document.getElementById('campo-valor').value     = '';
+    document.getElementById('campo-data').valueAsDate = new Date();
+    document.getElementById('campo-categoria').value = '';
+  }
+
+  // Toast de feedback
+  function mostrarToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+  }
+</script>
+</body>
+</html>
