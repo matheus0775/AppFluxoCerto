@@ -3,10 +3,11 @@
    Cache-First para assets locais.
    Network-First com fallback offline para o resto.
 ============================================================ */
-const CACHE = 'fluxocerto-pro-v3';
+const CACHE = 'fluxocerto-pro-v6';
 const SHELL = [
   './',
   './index.html',
+  './app.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -32,8 +33,9 @@ self.addEventListener('fetch', e => {
     caches.match(e.request).then(cached => {
       if (cached) return cached;
       return fetch(e.request).then(resp => {
-        if (!resp || resp.status !== 200) return resp;
-        caches.open(CACHE).then(c => c.put(e.request, resp.clone()));
+        if (!resp || resp.status !== 200 || resp.type !== 'basic') return resp;
+        const responseToCache = resp.clone();
+        caches.open(CACHE).then(c => c.put(e.request, responseToCache));
         return resp;
       }).catch(() =>
         e.request.destination === 'document'
